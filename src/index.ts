@@ -1,9 +1,10 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { sendEmail } from "./tools/gmail.js";
 import { appendToGoogleDoc } from "./tools/docs.js";
 import { McpError } from "./utils/errors.js";
+import express from "express";
 
 const server = new Server(
   {
@@ -116,13 +117,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Google Workspace MCP server running on stdio");
-}
+const app = express();
+const API_KEY = process.env.API_KEY;
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
+// Authentication middleware
+app.use((req, res, next) => {
+  if (!API_KEY) {
+    console.warn("WARNING: API_KEY environment variable is not set. Server is open to the public.");
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+});
+
+let transport: SSEServerTransport | null = null;
+
+app.get("/sse", async (req, res) => {
+  transport = new SSEServerTransport("/messages", res);
+  await server.connect(transport);
+});
+
+app.post("/messages", express.json(), async (req, res) => {
+  if (transport) {
+    await transport.handlePostMessage(req, res);
+  } else {
+    res.status(500).send("Transport not initialized");
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Google Workspace MCP server running on SSE at http://localhost:${PORT}/sse`);
 });
