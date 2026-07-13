@@ -142,7 +142,7 @@ app.get("/sse", async (req, res) => {
   await server.connect(transport);
 });
 
-app.post("/messages", express.json(), async (req, res) => {
+app.post("/messages", async (req, res) => {
   if (transport) {
     await transport.handlePostMessage(req, res);
   } else {
