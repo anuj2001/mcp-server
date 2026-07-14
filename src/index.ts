@@ -124,8 +124,8 @@ app.post("/messages", async (req, res) => {
   await transport.handlePostMessage(req, res);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.listen(PORT, () => {
-  console.log(`Google Workspace MCP server running on SSE at http://localhost:${PORT}/sse`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Google Workspace MCP server running on SSE at http://0.0.0.0:${PORT}/sse`);
 });
