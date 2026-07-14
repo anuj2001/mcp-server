@@ -28,19 +28,32 @@ export async function appendToGoogleDoc(args: any) {
       endIndex = lastElement.endIndex - 1; // Insert before the very last newline
     }
 
+    const requests: any[] = [];
+    
+    if (endIndex > 1) {
+      requests.push({
+        deleteContentRange: {
+          range: {
+            startIndex: 1,
+            endIndex: endIndex
+          }
+        }
+      });
+    }
+    
+    requests.push({
+      insertText: {
+        location: {
+          index: 1,
+        },
+        text: content,
+      },
+    });
+
     const res = await docs.documents.batchUpdate({
       documentId,
       requestBody: {
-        requests: [
-          {
-            insertText: {
-              location: {
-                index: endIndex,
-              },
-              text: content,
-            },
-          },
-        ],
+        requests: requests,
       },
     });
 
